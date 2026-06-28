@@ -1,11 +1,9 @@
 ---
 name: pickup
 description: >
-  Restore context from a previous session handoff document. Use this skill whenever the user
-  types /pickup, wants to resume previous work, asks to load a session, or mentions picking
-  up where they left off. Trigger this even if the user just says "continue from last time"
-  or "what was I working on". If no file argument is given, automatically find the most
-  recent handoff doc in docs/sessions/.
+  Restore context from a previous session handoff document (created by `/done`). Use when
+  the user wants to resume previous work — "pickup", "continue from last time", "what was
+  I working on" — and orient on what's pending.
 license: MIT
 allowed-tools:
   - read
@@ -41,26 +39,26 @@ without the user having to re-explain anything.
 
 ### 2. Read and parse the document
 
-Read the full contents of the handoff markdown file. Extract:
+Read the full contents of the handoff markdown file. Extract all of the following, none skipped:
 
-- **Summary** — what the session was about
-- **Key decisions** — so you don't re-debate settled questions
-- **Learnings** — gotchas and patterns to keep in mind
-- **User preferences** — coding style, workflow choices to respect going forward
-- **Changes made** — which files were touched
-- **Current task status** — where things left off
-- **Next tasks** — what to work on
-- **Open questions** — what still needs answers
+- **Goal** — what the session was about
+- **Instructions** — persistent rules and preferences to respect going forward
+- **Decisions** — choices already made, so you don't re-debate settled questions
+- **Discoveries** — gotchas and patterns to keep in mind
+- **Accomplished** — split into **Completed** (what's done) and **Pending / Next Steps** (what's left to work on)
+- **Open questions** — unresolved questions that still need answers
+- **Relevant files** — which files were modified or referenced
 
 ### 3. Read the referenced files
 
-Look at the "Changes Made" section and read the key files listed there. This is what
-makes `/pickup` more than just showing notes — it actually loads the relevant code into
-context so you're ready to work, not just aware of what happened.
+Read the files listed under **Relevant Files → Modified** in the handoff doc. This is what
+makes `/pickup` more than just showing notes — it loads the relevant code into context so
+you're ready to work, not just aware of what happened. Never skip this step: the whole
+point is to restore working context, not show a summary the user could read themselves.
 
-Be selective: read files that are central to the next tasks. If there are many files listed,
-prioritize the ones related to "Next Tasks" and "Current Task Status". Don't read every
-file blindly — use judgment.
+If there are many files, prioritize the ones related to **Pending / Next Steps**. You don't
+need to read every referenced file — but always read the modified files central to the
+next tasks.
 
 ### 4. Present a context briefing
 
@@ -73,31 +71,29 @@ After reading everything, present a concise briefing to the user:
 **Branch:** {branch}
 
 ### Where we left off
-{1-2 sentences about current task status}
+{1-2 sentences on current status, from Accomplished → Pending / Next Steps}
 
 ### Key context
-- {most important decisions/learnings to keep in mind}
+- {most important Decisions and Discoveries to keep in mind}
 
 ### Ready to continue
-{list the next tasks from the handoff doc}
+{list the items from Pending / Next Steps}
 
 ### Open questions from last session
-- {any unresolved items that need input}
+- {items from the Open Questions section, if any}
 ```
 
 ### 5. Surface open questions
 
-If the handoff document contains open questions, present them to the user and ask if they
-want to address any of them before continuing. This is the moment to resolve ambiguity
-from the previous session before diving into new work.
+If the handoff document has an **Open Questions** section, present each question and ask
+whether the user wants to resolve any before continuing. This is the moment to clear
+ambiguity from the previous session before diving into new work.
 
 ## Important behavior
 
-- Never skip reading the referenced files. The whole point is to restore working context,
-  not just show a summary the user could read themselves.
-- Respect user preferences captured in the handoff doc. If the previous session noted that
-  the user prefers a specific coding style or tool, carry that forward.
+- Respect **Instructions** from the handoff doc — coding style, workflow preferences, tools
+  to use or avoid. Carry them forward as directives, not descriptions.
 - If the handoff doc references a git branch, check if that branch still exists and is
   checked out. Mention it if there's a mismatch.
-- After the briefing, you're ready to work. Don't ask "what would you like to do?" — instead,
-  suggest starting on the first item in "Next Tasks" unless the user directs otherwise.
+- After the briefing, suggest starting on the first item in **Pending / Next Steps** — don't
+  ask "what would you like to do?" unless the user redirects.

@@ -1,8 +1,8 @@
 ---
 name: done
 description: >
-  Save a session handoff to docs/sessions/. Trigger when the user says done, finished, wrap up,
-  handoff, session notes, or wants context saved.
+  Save a session handoff to docs/sessions/ for `/pickup` to restore. Use when the user
+  signals the session is ending and wants context preserved — "done", "handoff", "wrap up".
 license: MIT
 allowed-tools:
   - read
@@ -23,9 +23,11 @@ Review the **entire** conversation — not just the last few messages — and ex
 
 1. **Goal** — one clear sentence stating what the session was about
 2. **Instructions** — persistent rules, preferences, and constraints the user stated that should carry forward to future sessions (coding style, validation commands, workflow preferences, tools to use or avoid)
-3. **Discoveries** — technical findings, gotchas, and insights uncovered during the session. These are the things that would save someone hours if they knew them upfront. Use subheadings for distinct findings. Include evidence (specific values, line numbers, error messages, test results)
-4. **Accomplished** — split into **Completed** (numbered, with status markers) and **Pending / Next Steps** (actionable items remaining)
-5. **Relevant files / directories** — split into **Modified** (files changed, with line numbers and what changed) and **Read / Referenced** (files consulted but not changed)
+3. **Decisions** — choices made during the session and the reasoning behind them, so a future session doesn't re-debate settled questions
+4. **Discoveries** — technical findings, gotchas, and insights uncovered during the session. These are the things that would save someone hours if they knew them upfront. Use subheadings for distinct findings. Include evidence (specific values, line numbers, error messages, test results)
+5. **Accomplished** — split into **Completed** (numbered, with status markers) and **Pending / Next Steps** (actionable items remaining)
+6. **Open questions** — unresolved questions that need input or decisions deferred to the next session
+7. **Relevant files / directories** — split into **Modified** (files changed, with line numbers and what changed) and **Read / Referenced** (files consulted but not changed)
 
 If a section has no content, omit it entirely.
 
@@ -35,7 +37,7 @@ If a section has no content, omit it entirely.
 # Session: {topic}
 
 **Date:** {YYYY-MM-DD}
-**Time:** {HH:MM} PHT (UTC+8)
+**Time:** {HH:MM} {TZ abbr, e.g. SGT, PHT}
 **Model:** {model name} · {provider/client}
 **Working directory:** {cwd}
 **Branch:** {branch or "N/A"}
@@ -52,6 +54,14 @@ Write them as directives a future agent should follow.}
 - {e.g., "Always run `pnpm check-types` after changes"}
 - {e.g., "Use context7 MCP to validate against official docs before implementing fixes"}
 - {e.g., "The user prefers extracting constants over magic numbers"}
+
+## Decisions
+
+{Choices made during the session, with reasoning. Write each as a directive so a future
+session doesn't re-debate settled questions.}
+
+- {e.g., "Using PostHog session replay instead of FullStory — lighter bundle, sufficient for our debugging needs"}
+- {e.g., "Extracting the export logic into a service object rather than keeping it in the controller — the controller was getting unwieldy and the logic is reused by the admin endpoint"}
 
 ## Discoveries
 
@@ -77,6 +87,13 @@ This is the most valuable section for future context restoration.}
 - {Actionable next step with enough context to act on it without re-reading the whole doc}
 - {Another next step}
 
+## Open Questions
+
+{Unresolved questions that need input or decisions deferred to the next session. Omit
+this section entirely if there are none.}
+
+- {e.g., "Should the export feature also support CSV, or is PDF enough for v1?"}
+
 ## Relevant Files
 
 ### Modified
@@ -94,7 +111,7 @@ This is the most valuable section for future context restoration.}
 docs/sessions/{YYYY-MM-DD}_{HHMM}-{topic-slug}.md
 ```
 
-- Date and time are in PHT (UTC+8). Get local time via `TZ=Asia/Manila date '+%Y-%m-%d_%H%M'`
+- Date and time use the system's local timezone. Get the timestamp via `date '+%Y-%m-%d_%H%M'` and the timezone abbreviation via `date '+%Z'`
 - Topic slug is lowercase, hyphenated, max 5 words derived from the session goal
 - Example: `docs/sessions/2026-02-27_1430-fitness-export-bugfix.md`
 - If a file with that name already exists, append a counter: `-2`, `-3`, etc.
@@ -102,13 +119,13 @@ docs/sessions/{YYYY-MM-DD}_{HHMM}-{topic-slug}.md
 ## Steps
 
 1. Run `mkdir -p docs/sessions/` to ensure the directory exists
-2. Get the current local time in PHT (UTC+8) using `TZ=Asia/Manila date`
+2. Get the current local timestamp and timezone abbreviation: `date '+%Y-%m-%d_%H%M'` and `date '+%Z'`
 3. Determine the current git branch (if in a git repo). Use "N/A" otherwise.
-4. Identify the model and provider/client powering this session (e.g., "Claude Opus 4.6 · OpenCode", "Claude Sonnet 4 · Github Copilot", "Gemini 2.5 Pro · Cursor"). Check your system prompt or model metadata if available.
- 5. Review the **full** conversation history from start to finish, until you can enumerate every distinct topic, decision, and discovery the session covered
- 6. Extract all items described in "What to capture" — every section filled with concrete content pulled from the conversation, none left skeletal
- 7. Write the file using the template
- 8. Check the output against the quality bar below; if any criterion fails, revise, then tell the user what was saved, the full path, and remind them they can use `/pickup` to restore context in a future session
+4. Identify the model and provider/client powering this session (e.g., "Claude Opus 4.6 · OpenCode", "Claude Sonnet 4 · GitHub Copilot", "Gemini 2.5 Pro · Cursor"). Check your system prompt or model metadata if available.
+5. Review the **full** conversation history from start to finish, until you can enumerate every distinct topic, decision, and discovery the session covered
+6. Extract all items described in "What to capture" — every section filled with concrete content pulled from the conversation, none left skeletal
+7. Write the file using the template
+8. Check the output against the quality bar below; if any criterion fails, revise, then tell the user what was saved, the full path, and remind them they can use `/pickup` to restore context in a future session
 
 ## Quality bar
 
