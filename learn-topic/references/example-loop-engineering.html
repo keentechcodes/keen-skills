@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loop Engineering — A Digestible Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+      .module-box { border: 2px solid #1e293b; border-radius: 6px; }
+      .module-box-thin { border: 1px dashed #64748b; border-radius: 6px; }
+      .badge-strong { background: #059669; color: #f0fdf4; }
+      .badge-worth { background: #d97706; color: #fffbeb; }
+      .badge-spec { background: #475569; color: #f1f5f9; }
+      .tag { background: #e2e8f0; color: #0f172a; }
+      .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .pipe { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+      .gravity-well { background: radial-gradient(ellipse at center, #7f1d1d 0%, #450a0a 70%); color: #fef2f2; }
+      .lift-bg { background: linear-gradient(135deg, #1e3a8a, #0c4a6e); color: #f0f9ff; }
+      .lift-bw { background: repeating-linear-gradient(45deg, #e0f2fe, #e0f2fe 6px, #bae6fd 6px, #bae6fd 12px); }
+      .fail-bg { background: linear-gradient(135deg, #7f1d1d, #450a0a); color: #fef2f2; }
+      .punch { background: #fef3c7; border-left: 4px solid #d97706; }
+      .quote-pull { background: #f8fafc; border-left: 4px solid #0f172a; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ============ HEADER ============ -->
+      <header class="space-y-4">
+        <div class="flex items-baseline justify-between flex-wrap gap-3">
+          <h1 class="text-3xl font-serif tracking-tight">Loop Engineering</h1>
+          <span class="text-sm text-slate-500">Digestible guide · 2026-06-27</span>
+        </div>
+        <p class="text-lg text-slate-700 max-w-3xl">
+          <strong>Replacing yourself as the person who prompts the agent. You design the system that does it instead.</strong>
+          Synthesized from <code class="code">cobusgreyling/loop-engineering</code>, essays by Addy Osmani and Cobus Greyling,
+          the <code class="code">KanakMalpani/Loop-Engineering</code> formal spec, and independent explainers.
+        </p>
+        <div class="punch rounded p-3 text-sm">
+          <strong>Note on your attachment:</strong> <code class="code">Loop-Engineering-IEEE.pdf</code> could not be read — this model does not
+          support PDF input. Everything below is from the GitHub repo + web research.
+        </div>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+          <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-sm deep"></span> loop primitive</div>
+          <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 border-2 border-slate-900 rounded-sm"></span> module / file</div>
+          <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-sm pipe"></span> durable / spine</div>
+          <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-sm fail-bg"></span> failure mode</div>
+        </div>
+      </header>
+
+      <!-- ============ SECTION 1 — TL;DR ============ -->
+      <section id="tldr" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <div class="flex items-baseline justify-between flex-wrap gap-2">
+          <h2 class="text-2xl font-serif">TL;DR — What it is</h2>
+          <span class="badge-strong px-2 py-1 rounded text-xs">Core idea</span>
+        </div>
+        <p class="text-base">
+          An AI coding agent, stripped down, is <em>"an LLM in a <code class="code">while</code> loop with tools."</em>
+          A chatbot answers in one pass. An agent persists across many steps. <strong>Loop engineering</strong> is
+          the discipline of designing the control system <em>around</em> that loop — the cadence, the tools, the
+          verification, the memory, the stopping conditions, the guardrails — rather than hand-writing each prompt.
+        </p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="quote-pull rounded p-4">
+            <p class="text-sm italic">"You shouldn't be prompting coding agents anymore. You should be designing loops that prompt your agents."</p>
+            <p class="text-xs text-slate-500 mt-2">— Peter Steinberger</p>
+          </div>
+          <div class="quote-pull rounded p-4">
+            <p class="text-sm italic">"I don't prompt Claude anymore. I have loops running that prompt Claude and figure out what to do. My job is to write loops."</p>
+            <p class="text-xs text-slate-500 mt-2">— Boris Cherny, Head of Claude Code, Anthropic</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 2 — THE SHIFT ============ -->
+      <section id="shift" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The shift — where the leverage moved</h2>
+        <div class="grid md:grid-cols-4 gap-3 text-center text-sm">
+          <div class="module-box-thin p-3">
+            <div class="text-xs uppercase tracking-wider text-slate-500">Layer 1</div>
+            <div class="font-semibold mt-1">Prompt Engineering</div>
+            <div class="text-xs text-slate-600 mt-1">shape the input to one model call</div>
+          </div>
+          <div class="module-box-thin p-3">
+            <div class="text-xs uppercase tracking-wider text-slate-500">Layer 2</div>
+            <div class="font-semibold mt-1">Context Engineering</div>
+            <div class="text-xs text-slate-600 mt-1">shape what the model sees per turn</div>
+          </div>
+          <div class="module-box-thin p-3">
+            <div class="text-xs uppercase tracking-wider text-slate-500">Layer 3</div>
+            <div class="font-semibold mt-1">Harness Engineering</div>
+            <div class="text-xs text-slate-600 mt-1">equip ONE agent run</div>
+          </div>
+          <div class="deep rounded p-3">
+            <div class="text-xs uppercase tracking-wider opacity-70">Layer 4</div>
+            <div class="font-semibold mt-1">Loop Engineering</div>
+            <div class="text-xs opacity-80 mt-1">orchestrate MANY runs over time</div>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6 text-sm">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Harness</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li>Scope: one agent run</li>
+              <li>Concerns: tools, context, permissions, rules</li>
+              <li>Lifetime: a session</li>
+              <li>Analogy: the sandbox</li>
+            </ul>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Loop</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li>Scope: many runs over time</li>
+              <li>Concerns: scheduling, state, verification, handoff, escalation</li>
+              <li>Lifetime: days/weeks, survives restarts</li>
+              <li>Analogy: the factory floor</li>
+            </ul>
+          </div>
+        </div>
+        <p class="text-sm text-slate-700">
+          Each layer subsumes the previous. You still write prompts and curate context — but the leverage has
+          moved one level up: from crafting individual prompts to designing the control system that schedules,
+          verifies, and persists across many runs.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 3 — LOOP CYCLE ============ -->
+      <section id="cycle" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The loop cycle</h2>
+        <p class="text-sm">Every loop, at every level, runs some variant of this cycle:</p>
+        <div class="lift-bg rounded p-4 text-center font-mono text-sm sm:text-base tracking-wide">
+          observe → decide → act → evaluate → update state → <span class="underline decoration-2 underline-offset-4">repeat</span>
+        </div>
+        <pre class="mermaid">
+flowchart LR
+  P[Perceive<br/>take in input] --> R[Reason<br/>decide what to do]
+  R --> A[Act<br/>call a tool]
+  A --> O[Observe<br/>check the result]
+  O -->|not done| P
+  O -->|done| S([Stop<br/>condition met])
+        </pre>
+        <div class="grid md:grid-cols-5 gap-2 text-xs">
+          <div class="module-box p-2 bg-white text-center"><div class="font-semibold">1. Intent</div><div class="text-slate-600">define target outcome</div></div>
+          <div class="module-box p-2 bg-white text-center"><div class="font-semibold">2. Context</div><div class="text-slate-600">gather code, docs, errors</div></div>
+          <div class="module-box p-2 bg-white text-center"><div class="font-semibold">3. Action</div><div class="text-slate-600">edit files, run commands</div></div>
+          <div class="module-box p-2 bg-white text-center"><div class="font-semibold">4. Observation</div><div class="text-slate-600">capture results, diffs, logs</div></div>
+          <div class="module-box p-2 bg-white text-center"><div class="font-semibold">5. Adjustment</div><div class="text-slate-600">update plan, repeat</div></div>
+        </div>
+        <div class="punch rounded p-3 text-sm">
+          <strong>The single most-skipped stage is Observation/Verify.</strong> Skipping it collapses a loop back
+          into a chain of one-shot calls.
+        </div>
+      </section>
+
+      <!-- ============ SECTION 4 — FIVE PRIMITIVES + MEMORY ============ -->
+      <section id="primitives" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The five primitives + memory</h2>
+        <p class="text-sm">Cobus Greyling's reference framework. Every production loop is built from these six pieces.</p>
+        <div class="grid md:grid-cols-3 gap-3">
+          <div class="deep rounded p-3 text-xs">
+            <div class="font-semibold text-sm">1. Automations / Scheduling</div>
+            <div class="opacity-80 mt-1">The heartbeat — discovery + triage on a cadence</div>
+            <div class="opacity-70 mt-2 text-[10px]"><code class="code">/loop</code> (Grok), cron in Claude Code, GitHub Actions, <code class="code">/goal</code></div>
+          </div>
+          <div class="deep rounded p-3 text-xs">
+            <div class="font-semibold text-sm">2. Worktrees</div>
+            <div class="opacity-80 mt-1">Safe parallel execution — each agent gets its own working dir</div>
+            <div class="opacity-70 mt-2 text-[10px]"><code class="code">isolation: "worktree"</code> in Grok, <code class="code">--worktree</code>, git worktrees</div>
+          </div>
+          <div class="deep rounded p-3 text-xs">
+            <div class="font-semibold text-sm">3. Skills</div>
+            <div class="opacity-80 mt-1">Persistent project knowledge that survives across runs</div>
+            <div class="opacity-70 mt-2 text-[10px]"><code class="code">SKILL.md</code> + scripts, <code class="code">CLAUDE.md</code>, plugins</div>
+          </div>
+          <div class="deep rounded p-3 text-xs">
+            <div class="font-semibold text-sm">4. Plugins &amp; Connectors (MCP)</div>
+            <div class="opacity-80 mt-1">Reach into real tools — tickets, PRs, DBs, dashboards</div>
+            <div class="opacity-70 mt-2 text-[10px]">Model Context Protocol servers</div>
+          </div>
+          <div class="deep rounded p-3 text-xs">
+            <div class="font-semibold text-sm">5. Sub-agents</div>
+            <div class="opacity-80 mt-1">Maker/checker split — the writer never grades their own work</div>
+            <div class="opacity-70 mt-2 text-[10px]">Explorer → Implementer → Verifier; separate model on <code class="code">/goal</code></div>
+          </div>
+          <div class="pipe rounded p-3 text-xs">
+            <div class="font-semibold text-sm">+ Memory / State</div>
+            <div class="opacity-90 mt-1">The durable spine outside any conversation</div>
+            <div class="opacity-80 mt-2 text-[10px]"><code class="code">STATE.md</code>, <code class="code">LOOP-STATE.json</code>, Linear board, GitHub Project, DB row</div>
+          </div>
+        </div>
+        <div class="punch rounded p-3 text-sm">
+          <strong>A minimal viable loop = Scheduling + one triage skill + a state file.</strong>
+          Add the others only when the previous version has proven its value — and its failure modes.
+        </div>
+      </section>
+
+      <!-- ============ SECTION 5 — ANATOMY ============ -->
+      <section id="anatomy" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Anatomy of a loop</h2>
+        <pre class="mermaid">
+flowchart LR
+    A[Schedule / Automation] --> B[Triage Skill]
+    B --> C[Read + Write STATE / Memory]
+    C --> D[Isolated Worktree]
+    D --> E[Implementer Sub-agent]
+    E --> F[Verifier Sub-agent<br/>tests + gates]
+    F --> G[MCP / Git / Tickets]
+    G --> H{Human Gate?}
+    H -->|safe / allowlisted| I[Commit / PR / Action]
+    H -->|risky / ambiguous| J[Escalate to human<br/>with full context]
+    I --> A
+    J --> A
+        </pre>
+        <div class="lift-bg rounded p-3 text-center font-mono text-xs sm:text-sm tracking-wide">
+          ⏱ Schedule → 👁 Triage skill → 📋 STATE.md → 🌲 Worktree → ⚙️ Implementer → ✓ Verifier → 🔗 MCP / PR → 🧑 Human gate
+        </div>
+        <p class="text-sm text-slate-700">You design it <strong>once</strong>. You're not prompting every micro-step.</p>
+      </section>
+
+      <!-- ============ SECTION 6 — DESIGN LEVERS ============ -->
+      <section id="levers" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The five design levers</h2>
+        <p class="text-sm">The tunable knobs around the basic agent loop.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs uppercase tracking-wider text-slate-500 text-left border-b border-slate-200">
+                <th class="py-2 pr-4">Lever</th>
+                <th class="py-2 pr-4">What it controls</th>
+                <th class="py-2">Notes</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="py-2 pr-4 font-semibold">Tools</td><td class="py-2 pr-4">What the agent can call</td><td class="py-2 text-slate-600">Scope tightly; least privilege</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Stopping conditions</td><td class="py-2 pr-4">When the loop may quit</td><td class="py-2 text-slate-600">Success, max-iterations, budget, no-progress detection</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Context management</td><td class="py-2 pr-4">What survives across turns</td><td class="py-2 text-slate-600">Compaction, <code class="code">NOTES.md</code>, sub-agent summaries (burn 30k, return 1k)</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Verification</td><td class="py-2 pr-4">How the loop proves it did the thing</td><td class="py-2 text-slate-600">Tests, linters, LLM-as-judge, JSON feature checklist with <code class="code">passes: false</code></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Guardrails</td><td class="py-2 pr-4">What stops the loop doing harm</td><td class="py-2 text-slate-600">Sandboxes, scoped credentials, hard budgets (e.g. Willison's $5 Fly.io org)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-sm">
+          A loop with no termination logic either declares victory early or never stops.
+          A loop with no verification is a chain of calls pretending to be a loop.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 7 — MAKER/CHECKER ============ -->
+      <section id="maker-checker" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <div class="flex items-baseline justify-between flex-wrap gap-2">
+          <h2 class="text-2xl font-serif">The maker / checker split</h2>
+          <span class="badge-strong px-2 py-1 rounded text-xs">Single most important pattern</span>
+        </div>
+        <div class="quote-pull rounded p-4">
+          <p class="text-sm">The agent that wrote the code is a terrible judge of its own work.</p>
+        </div>
+        <pre class="mermaid">
+flowchart LR
+    Spec[Spec / Goal] --> Maker[Maker<br/>implements]
+    Maker --> Checker[Checker<br/>independent model + rubric]
+    Checker -->|pass| Done[Accept]
+    Checker -->|fail + feedback| Maker
+    Checker -->|stuck / ambiguous| Human[Human gate]
+        </pre>
+        <div class="grid md:grid-cols-2 gap-4 text-sm">
+          <div class="module-box p-3 bg-white">
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Common splits</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li>Explorer → Implementer → Verifier</li>
+              <li>Implementer → Security reviewer</li>
+              <li>Implementer → Test writer + runner</li>
+            </ul>
+          </div>
+          <div class="module-box p-3 bg-white">
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Two verification models</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li><strong>Deterministic</strong> — test suites, linters, type checks. Binary pass/fail.</li>
+              <li><strong>LLM-as-judge</strong> — second model scores output vs rubric. Use when "good" isn't binary.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="text-sm">
+          <code class="code">/goal</code> in Claude Code / Codex applies this to the <em>stop condition itself</em>:
+          a fresh model decides whether the goal is met — not the one that did the work. This is the only reason
+          you can walk away from an unattended loop with any confidence.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 8 — WHERE LOOPS LIVE ============ -->
+      <section id="tiers" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Where loops live — Tier A vs Tier B</h2>
+        <pre class="mermaid">
+flowchart TB
+    Need{What does the loop serve?}
+    Need -->|Solo dev / small team, human nearby| A[Tier A: Terminal harness loops]
+    Need -->|Product / multi-tenant, must survive restarts| B[Tier B: Platform runtime loops]
+
+    A --> A1[Grok /loop, Claude Code /goal, Codex automations]
+    A --> A2[Local worktrees, STATE.md, cron on your machine]
+
+    B --> B1[LangGraph / Agent Server]
+    B --> B2[MicroVM sandboxes per agent]
+    B --> B3[Durable execution + checkpoints]
+    B --> B4[Stateful cron: same thread_id every run]
+        </pre>
+        <div class="grid md:grid-cols-2 gap-4 text-sm">
+          <div class="module-box p-3 bg-white">
+            <div class="font-semibold">Tier A — Terminal harness</div>
+            <div class="text-slate-600 text-xs mt-1">Best for solo dev, loops scoped to repos you own, human nearby</div>
+            <div class="text-slate-700 mt-2">Grok <code class="code">/loop</code>, Claude Code <code class="code">/goal</code>, Codex Automations</div>
+          </div>
+          <div class="module-box p-3 bg-white">
+            <div class="font-semibold">Tier B — Platform runtime</div>
+            <div class="text-slate-600 text-xs mt-1">Best for production, multi-tenant, must survive crashes, runs code you didn't write</div>
+            <div class="text-slate-700 mt-2">LangGraph + LangSmith Sandboxes, Agent Server, durable execution, human-in-the-loop interrupts</div>
+          </div>
+        </div>
+        <p class="text-sm text-slate-700">
+          Reach for Tier B the moment "I have <code class="code">/loop</code> running in a TUI" stops being
+          an acceptable production answer.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 9 — PATTERNS ============ -->
+      <section id="patterns" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The seven production patterns</h2>
+        <p class="text-sm">From the reference repo. Start with the <strong>L1 report-only</strong> ones.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs uppercase tracking-wider text-slate-500 text-left border-b border-slate-200">
+                <th class="py-2 pr-4">Pattern</th>
+                <th class="py-2 pr-4">Cadence</th>
+                <th class="py-2 pr-4">Week 1</th>
+                <th class="py-2">Token cost</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="py-2 pr-4 font-semibold">Daily Triage</td><td class="py-2 pr-4 font-mono text-xs">1d–2h</td><td class="py-2 pr-4">L1 report</td><td class="py-2"><span class="tag px-2 py-0.5 rounded text-xs">Low</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Issue Triage</td><td class="py-2 pr-4 font-mono text-xs">2h–1d</td><td class="py-2 pr-4">L1 propose-only</td><td class="py-2"><span class="tag px-2 py-0.5 rounded text-xs">Low</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Changelog Drafter</td><td class="py-2 pr-4 font-mono text-xs">1d or tag</td><td class="py-2 pr-4">L1 draft</td><td class="py-2"><span class="tag px-2 py-0.5 rounded text-xs">Low</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Post-Merge Cleanup</td><td class="py-2 pr-4 font-mono text-xs">1d–6h</td><td class="py-2 pr-4">L1 off-peak</td><td class="py-2"><span class="tag px-2 py-0.5 rounded text-xs">Low</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">Dependency Sweeper</td><td class="py-2 pr-4 font-mono text-xs">6h–1d</td><td class="py-2 pr-4">L2 patch-only</td><td class="py-2"><span class="badge-worth px-2 py-0.5 rounded text-xs">Medium</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">PR Babysitter</td><td class="py-2 pr-4 font-mono text-xs">5–15m</td><td class="py-2 pr-4">L1 watch</td><td class="py-2"><span class="badge-worth px-2 py-0.5 rounded text-xs">High</span></td></tr>
+              <tr><td class="py-2 pr-4 font-semibold">CI Sweeper</td><td class="py-2 pr-4 font-mono text-xs">5–15m</td><td class="py-2 pr-4">L2 cautious</td><td class="py-2"><span class="badge-spec px-2 py-0.5 rounded text-xs">Very high</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-slate-600">
+          Rule of thumb: start with low-cost, low-cadence, report-only loops. The 5-minute PR Babysitter looks
+          attractive but will burn a limited plan before breakfast if you run full maker/checker on every tick.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 10 — PHASED ROLLOUT ============ -->
+      <section id="rollout" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">How to apply it — phased rollout</h2>
+        <p class="text-sm">The non-negotiable deployment ladder. Skip a rung and you'll either burn tokens or ship unattended mistakes.</p>
+        <pre class="mermaid">
+flowchart LR
+    L0[Empty<br/>no loop] --> L1[L1: Report-only<br/>no auto-fix]
+    L1 --> L2[L2: Assisted fixes<br/>human approves each]
+    L2 --> L3[L3: Unattended<br/>verifier + gates + budget]
+        </pre>
+        <div class="grid md:grid-cols-4 gap-3 text-sm">
+          <div class="module-box p-3 bg-white text-center">
+            <div class="font-semibold">L0</div>
+            <div class="text-xs text-slate-600 mt-1">Nothing runs</div>
+            <div class="text-xs text-slate-700 mt-2">Everything manually</div>
+          </div>
+          <div class="module-box p-3 bg-white text-center">
+            <div class="font-semibold">L1</div>
+            <div class="text-xs text-slate-600 mt-1">Triage + report to STATE.md</div>
+            <div class="text-xs text-slate-700 mt-2">Reads reports, decides</div>
+          </div>
+          <div class="module-box p-3 bg-white text-center">
+            <div class="font-semibold">L2</div>
+            <div class="text-xs text-slate-600 mt-1">Triage + draft fixes in worktree</div>
+            <div class="text-xs text-slate-700 mt-2">Approves each PR</div>
+          </div>
+          <div class="deep rounded p-3 text-center">
+            <div class="font-semibold">L3</div>
+            <div class="text-xs opacity-80 mt-1">Full maker/checker, auto-PR for safe work</div>
+            <div class="text-xs opacity-90 mt-2">Gates only on risky/ambiguous</div>
+          </div>
+        </div>
+        <div class="punch rounded p-3 text-sm">
+          <strong>L3 requires:</strong> verifier skill + state file + cost observability + proven activity
+          (real run timestamps, not aspirations).
+        </div>
+        <div class="quote-pull rounded p-4">
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Steinberger's onboarding recipe</div>
+          <p class="text-sm">
+            Start with <strong>dependency bumps, codemods, or flaky-test fixes</strong>. They are narrow in scope,
+            have a binary pass/fail signal (CI green / diff clean), need no human judgement, and repeat on a schedule.
+            Once one works reliably for a few weeks, the pattern transfers — but the trust is earned incrementally.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 11 — DAILY TRIAGE EXAMPLE ============ -->
+      <section id="example" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Concrete example — Daily Triage loop</h2>
+        <p class="text-sm">The canonical first loop. Low cost, high learning.</p>
+        <pre class="mermaid">
+sequenceDiagram
+    participant Cron as ⏱ Cron (daily 9am)
+    participant Triage as 👁 Triage Skill
+    participant State as 📋 STATE.md
+    participant Impl as ⚙️ Implementer
+    participant Verify as ✓ Verifier
+    participant PR as 🔗 GitHub PR
+    participant Human as 🧑 You
+
+    Cron->>Triage: fire
+    Triage->>Triage: read yesterday's CI failures, open issues, recent commits
+    Triage->>State: write findings
+    alt nothing actionable
+        Triage->>State: archive run, log "no-op"
+    else actionable item
+        State->>Impl: spawn in isolated worktree
+        Impl->>Impl: draft fix
+        Impl->>Verify: hand off diff
+        Verify->>Verify: run tests + lint + spec check
+        alt pass
+            Verify->>PR: open PR
+            PR->>Human: review request
+        else fail
+            Verify->>Impl: feedback, retry (max 3)
+        end
+    end
+        </pre>
+        <div class="module-box p-3 bg-stone-50 code text-sm">
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Week 1 command (Grok)</div>
+          <div>/loop 1d Run loop-triage. Update STATE.md. No auto-fix in week one.</div>
+        </div>
+        <p class="text-sm">That's it. Report-only. No auto-fix. Earn trust first.</p>
+      </section>
+
+      <!-- ============ SECTION 12 — FORMAL SPEC ============ -->
+      <section id="spec" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Formal specification — LSS 1.0</h2>
+        <p class="text-sm">
+          The <code class="code">KanakMalpani/Loop-Engineering</code> repo offers a formal spec format. Useful when
+          loops graduate from "script in a TUI" to "production system with auditors."
+        </p>
+        <p class="text-sm">
+          A loop is formalized as <strong>L = (S, A, O, T, E, M, τ)</strong> — state, actions, observations,
+          transitions, evaluators, memory, termination.
+        </p>
+        <div class="module-box p-4 bg-stone-50 code text-xs overflow-x-auto">
+<pre class="text-xs">
+loop_name: code-repair-loop
+version: "1.0"
+objective: "Fix failing tests with minimal diff"
+workers:
+  - role: implementer
+    model: claude-sonnet
+evaluators:
+  - type: test_suite
+feedback_channels:
+  - id: test_failures_to_impl
+    source: evaluators.test_suite
+    destination: workers.implementer
+termination_conditions:
+  - type: all_tests_pass
+  - type: max_iterations
+    value: 10
+cost_limits:
+  max_tokens_per_run: 500000
+safety_constraints:
+  - no_force_push
+  - no_destructive_migrations
+</pre>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4 text-sm">
+          <div class="module-box p-3 bg-white">
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Five conformance principles</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li>Completeness</li>
+              <li>Boundedness (every loop must terminate)</li>
+              <li>Safety-first</li>
+              <li>Observability</li>
+              <li>Version discipline</li>
+            </ul>
+          </div>
+          <div class="module-box p-3 bg-white">
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">D-D-M-I-S framework</div>
+            <p class="text-xs">The methodology that gives the spec teeth:</p>
+            <div class="font-mono text-xs mt-2">Design → Diagnose → Measure → Improve → Scale</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 13 — FAILURE MODES ============ -->
+      <section id="failures" class="rounded-xl border-2 border-red-200 bg-red-50/40 p-6 space-y-5">
+        <div class="flex items-baseline justify-between flex-wrap gap-2">
+          <h2 class="text-2xl font-serif">Failure modes &amp; anti-patterns</h2>
+          <span class="badge-spec px-2 py-1 rounded text-xs">Loops amplify judgment — both good and bad</span>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Infinite fix loops</div>
+            <div class="opacity-90 mt-1">Maker and checker ping-pong forever</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: cap iterations (3 attempts), then escalate to human</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Verifier theater</div>
+            <div class="opacity-90 mt-1">Checker exists but never fails anything</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: independent model, real rubric, trap fixtures</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Token burn</div>
+            <div class="opacity-90 mt-1">5-min loop runs full maker/checker every tick</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: triage cheap; spawn sub-agents only when state says actionable</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Comprehension debt</div>
+            <div class="opacity-90 mt-1">Loop ships code faster than you read it</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: read what the loop made; the loop doesn't know what it doesn't know</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Orphaned worktrees</div>
+            <div class="opacity-90 mt-1">Loop spawns, never cleans up</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: explicit cleanup step in every run</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs">
+            <div class="font-semibold text-sm">Auto-merge runaway</div>
+            <div class="opacity-90 mt-1">Allowlisted "safe" path turns out not to be</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: path denylist, auto-merge policy, MCP least privilege</div>
+          </div>
+          <div class="fail-bg rounded p-3 text-xs md:col-span-2">
+            <div class="font-semibold text-sm">Judgment atrophy</div>
+            <div class="opacity-90 mt-1">You stop having opinions; the loop runs you</div>
+            <div class="opacity-80 mt-2 text-[10px]">Fix: design loops with judgment; using loops to avoid thinking is the accelerant</div>
+          </div>
+        </div>
+        <div class="quote-pull rounded p-4">
+          <p class="text-sm">Two people can run the same loop and get opposite results. The loop doesn't know. You do.</p>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 14 — COST & SAFETY ============ -->
+      <section id="cost-safety" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Cost &amp; safety defaults</h2>
+        <div class="lift-bw rounded p-4 code text-sm space-y-1">
+          <div>Triage should be CHEAP — one model pass over signals, not maker+checker every tick.</div>
+          <div>Spawn sub-agents ONLY when state says actionable.</div>
+          <div>Cap iterations per item — 3 attempts, then escalate to human.</div>
+          <div>Give every loop a hard budget (tokens $$, run minutes).</div>
+          <div>Run report-only for one week before any auto-fix.</div>
+        </div>
+        <p class="text-sm">
+          The <code class="code">loop-audit</code> CLI scores your repo 0→100 on readiness: state file present,
+          triage skill present, verifier skill, <code class="code">LOOP.md</code>, safety docs, MCP configured,
+          worktree isolation evidence, <code class="code">patterns/registry.yaml</code>,
+          <code class="code">loop-budget.md</code>, <code class="code">loop-run-log.md</code>, real run activity.
+        </p>
+      </section>
+
+      <!-- ============ SECTION 15 — GETTING STARTED ============ -->
+      <section id="start" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Getting started in 5 minutes</h2>
+        <div class="module-box p-4 bg-stone-50 code text-sm space-y-2 overflow-x-auto">
+<pre class="text-xs">
+# 1. Scaffold a starter
+npx @cobusgreyling/loop-init . --pattern daily-triage --tool grok
+
+# 2. Estimate token spend for your cadence
+npx @cobusgreyling/loop-cost --pattern daily-triage --level L1
+
+# 3. Audit readiness
+npx @cobusgreyling/loop-audit . --suggest
+
+# 4. Start report-only (Grok)
+/loop 1d Run loop-triage. Update STATE.md. No auto-fix in week one.
+
+# 5. After a week of clean reports, promote to L2
+#    (draft fixes in worktree, human approves each PR)
+</pre>
+        </div>
+        <div class="punch rounded p-3 text-sm">
+          The minimum viable loop is just three things:
+          <strong>a schedule, a triage skill, and a state file.</strong>
+          Everything else is added when the previous version has proven itself.
+        </div>
+      </section>
+
+      <!-- ============ SECTION 16 — DECISION TREE ============ -->
+      <section id="decision" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">How YOU can apply it — a decision tree</h2>
+        <pre class="mermaid">
+flowchart TD
+    Q1{Do you have a recurring<br/>software task?}
+    Q1 -->|No| N[You don't need a loop yet.<br/>Just use the agent normally.]
+    Q1 -->|Yes| Q2{Is there a binary<br/>pass/fail signal?}
+    Q2 -->|No| Q2b[Refine until there is.<br/>No signal = no verification<br/>= no loop, just a chain.]
+    Q2 -->|Yes| Q3{Does it run on a schedule<br/>or until a condition?}
+    Q3 -->|schedule| A[Pick a cadence pattern:<br/>Daily Triage / CI Sweeper / Dep Sweeper]
+    Q3 -->|until condition| B[Pick a goal pattern:<br/>use /goal with maker/checker]
+    A --> C[Week 1: L1 report-only]
+    B --> C
+    C --> D[Week 2-3: L2 assisted fixes<br/>human approves each]
+    D --> E{Trust earned?<br/>Verifier catches real bugs?}
+    E -->|No| F[Stay at L2.<br/>Improve verifier/skills.]
+    E -->|Yes| G[L3 unattended for allowlisted safe work]
+    G --> H[Add loop-audit to CI.<br/>Track run-log + budget.]
+        </pre>
+      </section>
+
+      <!-- ============ SECTION 17 — CHECKLIST ============ -->
+      <section id="checklist" class="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-6 space-y-5">
+        <h2 class="text-2xl font-serif">Checklist before shipping any loop</h2>
+        <div class="grid md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Objective is a single sentence with a verifiable condition</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Triage skill exists and is cheap (one model pass)</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span><code class="code">STATE.md</code> / state file is read at start, written at end</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Worktree isolation for any code-changing run</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Verifier is a <em>different</em> agent/model from the maker</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Max iterations cap (3) with human escalation</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Hard token + dollar budget</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Run log (JSON per run) + budget file</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span><code class="code">LOOP.md</code> documents cadence + gates</span></label>
+          <label class="flex items-start gap-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Path denylist + auto-merge policy defined</span></label>
+          <label class="flex items-start gap-2 md:col-span-2"><span class="mt-1 w-4 h-4 border-2 border-slate-400 rounded-sm shrink-0"></span><span>Report-only for one week before any auto-fix</span></label>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 18 — CAVEATS ============ -->
+      <section id="caveats" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">The honest caveats</h2>
+        <ul class="list-disc list-inside space-y-2 text-sm">
+          <li><strong>Token costs explode</strong> with sub-agents and long-running loops. Budget before you schedule.</li>
+          <li><strong>Verification is still on you.</strong> Unattended loops make unattended mistakes.</li>
+          <li><strong>Comprehension debt grows faster</strong> than the codebase unless you read what the loop ships.</li>
+          <li><strong>The loop doesn't know what it doesn't know.</strong> Two people run the same loop and get opposite results. You do.</li>
+        </ul>
+        <div class="quote-pull rounded p-4">
+          <p class="text-sm italic">"Build the loop. But build it like someone who intends to stay the engineer, not just the person who presses go."</p>
+          <p class="text-xs text-slate-500 mt-2">— Addy Osmani</p>
+        </div>
+      </section>
+
+      <!-- ============ SECTION 19 — REFERENCES ============ -->
+      <section id="references" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 class="text-2xl font-serif">References</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://github.com/cobusgreyling/loop-engineering">cobusgreyling/loop-engineering</a></td><td class="py-2 text-slate-700">Reference repo: 7 patterns, starters, <code class="code">loop-audit</code>/<code class="code">loop-init</code>/<code class="code">loop-cost</code> CLIs</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://cobusgreyling.substack.com/p/loop-engineering">Cobus Greyling — Loop Engineering (Substack)</a></td><td class="py-2 text-slate-700">The concept essay — read first</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://cobusgreyling.substack.com/p/loop-engineering-playbook">Cobus Greyling — Loop Engineering Playbook</a></td><td class="py-2 text-slate-700">Tier A vs Tier B, where loops live</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://addyosmani.com/blog/loop-engineering/">Addy Osmani — Loop Engineering</a></td><td class="py-2 text-slate-700">Canonical independent essay</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://github.com/KanakMalpani/Loop-Engineering">KanakMalpani/Loop-Engineering</a></td><td class="py-2 text-slate-700">Formal LSS 1.0 spec, D-D-M-I-S framework, 6-level taxonomy, 14 patterns</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://www.eesel.ai/blog/loop-engineering">eesel AI — Loop engineering explained</a></td><td class="py-2 text-slate-700">The 5 design levers (tools, stopping, context, verification, guardrails)</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://kilo.ai/articles/what-is-loop-engineering">Kilo.ai — What Is Loop Engineering?</a></td><td class="py-2 text-slate-700">5-stage loop (intent → context → action → observation → adjustment)</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://pub.towardsai.net/loop-engineering-cafdc8a3acb6">Rick Hightower — Loop Engineering (Towards AI)</a></td><td class="py-2 text-slate-700">4-stage cycle, LLM-as-judge, verification gates</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://mindber.com/en/blog/what-is-loop-engineering">mindber — Loop Engineering</a></td><td class="py-2 text-slate-700">Harness vs loop, Steinberger's onboarding recipe</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://futureagi.com/blog/llm-eval-feedback-loop-design-2026/">FutureAGI — LLM Eval Feedback Loop Design</a></td><td class="py-2 text-slate-700">6-stage compounding feedback loop (capture → join → calibrate → promote → CI gate → optimize)</td></tr>
+              <tr><td class="py-2 pr-4 font-semibold align-top"><a class="text-slate-900 underline" href="https://github.com/cobusgreyling/goal-engineering">cobusgreyling/goal-engineering</a></td><td class="py-2 text-slate-700">Companion repo for <code class="code">/goal</code>-style run-until-done loops</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ BOTTOM LINE ============ -->
+      <section class="rounded-xl border-2 border-slate-900 bg-slate-900 text-slate-50 p-6 space-y-3">
+        <h2 class="text-2xl font-serif">Bottom line</h2>
+        <p class="text-base">
+          Loop engineering is the runtime layer above prompt/context/harness engineering. Stop steering the agent
+          turn-by-turn; design the system that schedules, assigns, verifies, persists, and escalates.
+          Start with one cheap report-only loop on a task with a binary signal, run it a week, earn trust,
+          then climb L1 → L2 → L3.
+        </p>
+        <p class="text-sm opacity-80">
+          The loop is the lever; your judgment is the fulcrum.
+        </p>
+      </section>
+
+    </main>
+  </body>
+</html>

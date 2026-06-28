@@ -1,0 +1,75 @@
+<!--
+  learn-topic-v2 — HTML primer template
+  Copy this file verbatim, swap only the content of <header> and each <section>.
+  Loaded via the Phase 4 context pointer in SKILL.md.
+
+  Visual conventions (co-located — apply consistently across every primer):
+
+    Class            | Use for
+    -----------------+------------------------------------------
+    deep             | primary / durable concept (dark slate)
+    pipe             | runtime / data spine
+    badge-strong     | recommended / strong signal (green)
+    badge-worth      | worth exploring / medium cost (amber)
+    badge-spec       | speculative / very high cost (slate)
+    tag              | neutral label (light)
+    punch            | critical callout, "the one thing to remember" (amber strip)
+    quote-pull       | attributed quote (white strip)
+    fail-bg          | failure mode / anti-pattern card (dark red)
+    lift-bg          | pipeline / sequence strip (blue gradient)
+    lift-bw          | repeating conventional pattern block (blue stripes)
+
+  Rules:
+    - Tailwind CDN pulls stable v3 by default. Stick to stable, well-known utility classes.
+    - No emojis in section headers. Plain text + badges only.
+    - One <section> per Phase 3 content block. Close with the dark "Bottom line" card.
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{Topic} — A Digestible Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+      .module-box { border: 2px solid #1e293b; border-radius: 6px; }
+      .module-box-thin { border: 1px dashed #64748b; border-radius: 6px; }
+      .badge-strong { background: #059669; color: #f0fdf4; }
+      .badge-worth { background: #d97706; color: #fffbeb; }
+      .badge-spec { background: #475569; color: #f1f5f9; }
+      .tag { background: #e2e8f0; color: #0f172a; }
+      .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .pipe { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+      .lift-bg { background: linear-gradient(135deg, #1e3a8a, #0c4a6e); color: #f0f9ff; }
+      .lift-bw { background: repeating-linear-gradient(45deg, #e0f2fe, #e0f2fe 6px, #bae6fd 6px, #bae6fd 12px); }
+      .fail-bg { background: linear-gradient(135deg, #7f1d1d, #450a0a); color: #fef2f2; }
+      .punch { background: #fef3c7; border-left: 4px solid #d97706; }
+      .quote-pull { background: #f8fafc; border-left: 4px solid #0f172a; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <header class="space-y-4">
+        <!-- title, subtitle, optional anchor quote -->
+      </header>
+
+      <!-- one <section> per content block from Phase 3 -->
+      <section id="..." class="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+        <!-- ... -->
+      </section>
+      <!-- ... -->
+
+      <section class="rounded-xl border-2 border-slate-900 bg-slate-900 text-slate-50 p-6 space-y-3">
+        <h2 class="text-2xl font-serif">Bottom line</h2>
+        <p class="text-base"> ... </p>
+      </section>
+
+    </main>
+  </body>
+</html>
